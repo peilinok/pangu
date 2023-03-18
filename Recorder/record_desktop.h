@@ -8,6 +8,7 @@
 #include <atomic>
 #include <thread>
 #include <functional>
+#include <string>
 
 namespace am {
 	typedef std::function<void(AVFrame *frame)> cb_desktop_data;

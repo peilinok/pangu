@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "record_audio.h"
 
 namespace am {

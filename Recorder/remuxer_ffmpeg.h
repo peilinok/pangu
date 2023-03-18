@@ -5,6 +5,7 @@
 #include <atomic>
 #include <functional>
 #include <thread>
+#include <string>
 
 namespace am {
 	typedef void(*cb_remux_progress)(const char *, int, int);

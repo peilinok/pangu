@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <atomic>
+#include <string>
 
 namespace am {
 
