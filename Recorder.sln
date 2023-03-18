@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.33328.57
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Recorder", "Recorder\Recorder.vcxproj", "{7A53119E-1803-42CD-BC2F-CF60B09A42E6}"
 EndProject
@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "Test\Test.vcxproj",
 	ProjectSection(ProjectDependencies) = postProject
 		{7A53119E-1803-42CD-BC2F-CF60B09A42E6} = {7A53119E-1803-42CD-BC2F-CF60B09A42E6}
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WGC", "WGC\WGC.vcxproj", "{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,8 +36,19 @@ Global
 		{3CB2C5EB-D651-42DA-B254-9B5E121B98DD}.Release_DLL|x86.Build.0 = Release_DLL|Win32
 		{3CB2C5EB-D651-42DA-B254-9B5E121B98DD}.Release|x86.ActiveCfg = Release_DLL|Win32
 		{3CB2C5EB-D651-42DA-B254-9B5E121B98DD}.Release|x86.Build.0 = Release_DLL|Win32
+		{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}.Debug_DLL|x86.ActiveCfg = Debug_DLL|Win32
+		{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}.Debug_DLL|x86.Build.0 = Debug_DLL|Win32
+		{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}.Debug|x86.ActiveCfg = Debug|Win32
+		{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}.Debug|x86.Build.0 = Debug|Win32
+		{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}.Release_DLL|x86.ActiveCfg = Release_DLL|Win32
+		{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}.Release_DLL|x86.Build.0 = Release_DLL|Win32
+		{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}.Release|x86.ActiveCfg = Release|Win32
+		{ED5A2FF2-13F2-4A51-A347-6251F0024CA0}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {87F4BC67-C35F-41C5-9AD5-F79F8DA0BC1C}
 	EndGlobalSection
 EndGlobal
