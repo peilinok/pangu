@@ -10,10 +10,6 @@
 // add headers that you want to pre-compile here
 #include "framework.h"
 
-#ifdef AMRECORDER_IMPORT
-#define AMRECORDER_API extern "C" __declspec(dllimport)
-#else
-#define AMRECORDER_API extern "C" __declspec(dllexport)
-#endif
+#include "export.h"
 
 #endif //PCH_H

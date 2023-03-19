@@ -1,0 +1,43 @@
+#pragma once
+
+#include <Windows.h>
+
+#ifdef AMRECORDER_IMPORT
+#define AMRECORDER_API extern "C" __declspec(dllimport)
+#else
+#define AMRECORDER_API extern "C" __declspec(dllexport)
+#endif
+
+namespace am {
+
+class wgc_session {
+public:
+  struct wgc_session_frame {};
+
+  class wgc_session_observer {
+  public:
+    virtual ~wgc_session_observer() {}
+    virtual void on_frame(const wgc_session_frame &frame) = 0;
+  };
+
+public:
+  virtual ~wgc_session(){};
+
+  virtual void release() = 0;
+
+  virtual int init(HWND hwnd) = 0;
+  virtual int init(HMONITOR hmonitor) = 0;
+
+  virtual void register_observer(const wgc_session_observer *observer) = 0;
+  virtual void unregister_observer(const wgc_session_observer *observer) = 0;
+
+  virtual int start() = 0;
+  virtual int stop() = 0;
+
+  virtual int pause() = 0;
+  virtual int resume() = 0;
+};
+
+} // namespace am
+
+AMRECORDER_API am::wgc_session *wgc_create_session();
