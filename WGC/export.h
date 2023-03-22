@@ -25,8 +25,8 @@ public:
 
   virtual void release() = 0;
 
-  virtual int init(HWND hwnd) = 0;
-  virtual int init(HMONITOR hmonitor) = 0;
+  virtual int initialize(HWND hwnd) = 0;
+  virtual int initialize(HMONITOR hmonitor) = 0;
 
   virtual void register_observer(const wgc_session_observer *observer) = 0;
   virtual void unregister_observer(const wgc_session_observer *observer) = 0;
@@ -40,4 +40,5 @@ public:
 
 } // namespace am
 
+AMRECORDER_API bool wgc_is_supported();
 AMRECORDER_API am::wgc_session *wgc_create_session();
