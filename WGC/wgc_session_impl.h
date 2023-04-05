@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 namespace am {
 class wgc_session_impl : public wgc_session {
   struct __declspec(uuid("A9B3D012-3DF2-4EE3-B8D1-8695F457D3C1"))
@@ -26,7 +28,6 @@ public:
   int initialize(HMONITOR hmonitor) override;
 
   void register_observer(const wgc_session_observer *observer) override;
-  void unregister_observer(const wgc_session_observer *observer) override;
 
   int start() override;
   int stop() override;
@@ -53,11 +54,12 @@ private:
   void cleanup();
 
 private:
+  std::mutex lock_;
   bool is_initialized_ = false;
   bool is_running_ = false;
   bool is_paused_ = false;
 
-  wgc_session_observer *observer_ = nullptr;
+  const wgc_session_observer *observer_ = nullptr;
 
   // wgc
   winrt::Windows::Graphics::Capture::GraphicsCaptureItem capture_item_{nullptr};
@@ -86,5 +88,6 @@ inline auto wgc_session_impl::get_dxgi_interface(
       access->GetInterface(winrt::guid_of<T>(), result.put_void()));
   return result;
 }
+
 
 } // namespace am

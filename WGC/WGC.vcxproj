@@ -172,7 +172,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="export.h" />
-    <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="wgc_session_impl.h" />
   </ItemGroup>

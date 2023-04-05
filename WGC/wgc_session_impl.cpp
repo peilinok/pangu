@@ -2,6 +2,7 @@
 
 #include <memory>
 
+
 #define CHECK_INIT                                                             \
   if (!is_initialized_)                                                        \
   return AM_ERROR::AE_NEED_INIT
@@ -20,48 +21,96 @@ namespace am {
 
 wgc_session_impl::wgc_session_impl() {}
 
-wgc_session_impl::~wgc_session_impl() {}
+wgc_session_impl::~wgc_session_impl() {
+  stop();
+  cleanup();
+}
 
 void wgc_session_impl::release() { delete this; }
 
 int wgc_session_impl::initialize(HWND hwnd) {
+  std::lock_guard locker(lock_);
+
   target_.hwnd = hwnd;
   target_.is_window = true;
   return initialize();
 }
 
 int wgc_session_impl::initialize(HMONITOR hmonitor) {
+  std::lock_guard locker(lock_);
+
   target_.hmonitor = hmonitor;
   target_.is_window = false;
   return initialize();
 }
 
 void wgc_session_impl::register_observer(const wgc_session_observer *observer) {
+  std::lock_guard locker(lock_);
+  observer_ = observer;
 }
 
-void wgc_session_impl::unregister_observer(
-    const wgc_session_observer *observer) {}
-
 int wgc_session_impl::start() {
+  std::lock_guard locker(lock_);
+
+  int error = AM_ERROR::AE_WGC_CREATE_CAPTURER_FAILED;
+
   CHECK_INIT;
-  CHECK_CLOSED;
-  capture_session_.StartCapture();
-  return 0;
+  try {
+    if (!capture_session_) {
+      auto current_size = capture_item_.Size();
+      capture_framepool_ =
+          winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::Create(
+              d3d11_direct_device_,
+              winrt::Windows::Graphics::DirectX::DirectXPixelFormat::
+                  B8G8R8A8UIntNormalized,
+              2, current_size);
+      capture_session_ = capture_framepool_.CreateCaptureSession(capture_item_);
+      capture_frame_size_ = current_size;
+      capture_framepool_trigger_ = capture_framepool_.FrameArrived(
+          winrt::auto_revoke, {this, &wgc_session_impl::on_frame});
+    }
+
+    if (capture_session_) {
+      capture_session_.StartCapture();
+      error = AM_ERROR::AE_NO;
+    }
+  } catch (winrt::hresult_error) {
+    return AM_ERROR::AE_WGC_CREATE_CAPTURER_FAILED;
+  } catch (...) {
+    return AM_ERROR::AE_WGC_CREATE_CAPTURER_FAILED;
+  }
+
+  return error;
 }
 
 int wgc_session_impl::stop() {
+  std::lock_guard locker(lock_);
+
   CHECK_INIT;
-  return 0;
+
+  if (capture_framepool_trigger_)
+    capture_framepool_trigger_.revoke();
+
+  if (capture_session_) {
+    capture_session_.Close();
+    capture_session_ = nullptr;
+  }
+
+  return AM_ERROR::AE_NO;
 }
 
 int wgc_session_impl::pause() {
+  std::lock_guard locker(lock_);
+
   CHECK_INIT;
-  return 0;
+  return AM_ERROR::AE_NO;
 }
 
 int wgc_session_impl::resume() {
+  std::lock_guard locker(lock_);
+
   CHECK_INIT;
-  return 0;
+  return AM_ERROR::AE_NO;
 }
 
 auto wgc_session_impl::create_d3d11_device() {
@@ -253,7 +302,6 @@ int wgc_session_impl::initialize() {
     return AM_ERROR::AE_D3D_CREATE_DEVICE_FAILED;
 
   try {
-
     if (target_.is_window)
       capture_item_ = create_capture_item(target_.hwnd);
     else
@@ -280,10 +328,14 @@ int wgc_session_impl::initialize() {
     return AM_ERROR::AE_WGC_CREATE_CAPTURER_FAILED;
   }
 
-  return 0;
+  is_initialized_ = true;
+
+   return AM_ERROR::AE_NO;
 }
 
 void wgc_session_impl::cleanup() {
+  std::lock_guard locker(lock_);
+
   auto expected = false;
   if (cleaned_.compare_exchange_strong(expected, true)) {
     capture_framepool_trigger_.revoke();
@@ -293,6 +345,8 @@ void wgc_session_impl::cleanup() {
     capture_framepool_ = nullptr;
     capture_session_ = nullptr;
     capture_item_ = nullptr;
+
+    is_initialized_ = false;
   }
 }
 

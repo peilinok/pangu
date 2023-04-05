@@ -29,7 +29,6 @@ public:
   virtual int initialize(HMONITOR hmonitor) = 0;
 
   virtual void register_observer(const wgc_session_observer *observer) = 0;
-  virtual void unregister_observer(const wgc_session_observer *observer) = 0;
 
   virtual int start() = 0;
   virtual int stop() = 0;
