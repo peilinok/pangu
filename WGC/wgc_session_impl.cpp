@@ -1,7 +1,7 @@
 #include "pch.h"
 
 #include <memory>
-
+#include <functional>
 
 #define CHECK_INIT                                                             \
   if (!is_initialized_)                                                        \
@@ -52,6 +52,9 @@ void wgc_session_impl::register_observer(const wgc_session_observer *observer) {
 int wgc_session_impl::start() {
   std::lock_guard locker(lock_);
 
+  if (is_running_)
+    return AM_ERROR::AE_NO;
+
   int error = AM_ERROR::AE_WGC_CREATE_CAPTURER_FAILED;
 
   CHECK_INIT;
@@ -70,10 +73,18 @@ int wgc_session_impl::start() {
           winrt::auto_revoke, {this, &wgc_session_impl::on_frame});
     }
 
-    if (capture_session_) {
-      capture_session_.StartCapture();
-      error = AM_ERROR::AE_NO;
-    }
+    if (!capture_framepool_)
+      throw std::exception();
+
+    capture_session_.StartCapture();
+
+    capture_close_trigger_ = capture_item_.Closed(
+        winrt::auto_revoke, {this, &wgc_session_impl::on_closed});
+
+    is_running_ = true;
+    thread_ = std::thread(std::bind(&wgc_session_impl::message_func, this));
+
+    error = AM_ERROR::AE_NO;
   } catch (winrt::hresult_error) {
     return AM_ERROR::AE_WGC_CREATE_CAPTURER_FAILED;
   } catch (...) {
@@ -87,6 +98,10 @@ int wgc_session_impl::stop() {
   std::lock_guard locker(lock_);
 
   CHECK_INIT;
+
+  is_running_ = false;
+  if (thread_.joinable())
+    thread_.join();
 
   if (capture_framepool_trigger_)
     capture_framepool_trigger_.revoke();
@@ -294,6 +309,10 @@ void wgc_session_impl::on_frame(
   }
 }
 
+void wgc_session_impl::on_closed(
+    winrt::Windows::Graphics::Capture::GraphicsCaptureItem const &,
+    winrt::Windows::Foundation::IInspectable const &) {}
+
 int wgc_session_impl::initialize() {
   if (is_initialized_)
     return AM_ERROR::AE_NO;
@@ -311,17 +330,6 @@ int wgc_session_impl::initialize() {
     auto d3d11_device = get_dxgi_interface<ID3D11Device>(d3d11_direct_device_);
     d3d11_device->GetImmediateContext(d3d11_device_context_.put());
 
-    auto size = capture_item_.Size();
-    capture_framepool_ =
-        winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::Create(
-            d3d11_direct_device_,
-            winrt::Windows::Graphics::DirectX::DirectXPixelFormat::
-                B8G8R8A8UIntNormalized,
-            2, size);
-    capture_session_ = capture_framepool_.CreateCaptureSession(capture_item_);
-    capture_frame_size_ = size;
-    capture_framepool_trigger_ = capture_framepool_.FrameArrived(
-        winrt::auto_revoke, {this, &wgc_session_impl::on_frame});
   } catch (winrt::hresult_error) {
     return AM_ERROR::AE_WGC_CREATE_CAPTURER_FAILED;
   } catch (...) {
@@ -330,7 +338,7 @@ int wgc_session_impl::initialize() {
 
   is_initialized_ = true;
 
-   return AM_ERROR::AE_NO;
+  return AM_ERROR::AE_NO;
 }
 
 void wgc_session_impl::cleanup() {
@@ -338,6 +346,7 @@ void wgc_session_impl::cleanup() {
 
   auto expected = false;
   if (cleaned_.compare_exchange_strong(expected, true)) {
+    capture_close_trigger_.revoke();
     capture_framepool_trigger_.revoke();
     capture_framepool_.Close();
     capture_session_.Close();
@@ -347,6 +356,17 @@ void wgc_session_impl::cleanup() {
     capture_item_ = nullptr;
 
     is_initialized_ = false;
+  }
+}
+
+void wgc_session_impl::message_func() {
+  while (is_running_) {
+    MSG msg;
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+    }
+    Sleep(10);
   }
 }
 

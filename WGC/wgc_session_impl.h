@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <thread>
 
 namespace am {
 class wgc_session_impl : public wgc_session {
@@ -49,15 +50,20 @@ private:
   on_frame(winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const
                &sender,
            winrt::Windows::Foundation::IInspectable const &args);
+  void on_closed(winrt::Windows::Graphics::Capture::GraphicsCaptureItem const &,
+                 winrt::Windows::Foundation::IInspectable const &);
 
   int initialize();
   void cleanup();
+
+  void message_func();
 
 private:
   std::mutex lock_;
   bool is_initialized_ = false;
   bool is_running_ = false;
   bool is_paused_ = false;
+  std::thread thread_;
 
   const wgc_session_observer *observer_ = nullptr;
 
@@ -77,6 +83,8 @@ private:
       capture_framepool_{nullptr};
   winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::
       FrameArrived_revoker capture_framepool_trigger_;
+  winrt::Windows::Graphics::Capture::GraphicsCaptureItem::Closed_revoker
+      capture_close_trigger_;
 };
 
 template <typename T>
