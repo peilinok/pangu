@@ -1,7 +1,7 @@
 #include "pch.h"
 
-#include <memory>
 #include <functional>
+#include <memory>
 
 #define CHECK_INIT                                                             \
   if (!is_initialized_)                                                        \
@@ -62,27 +62,30 @@ int wgc_session_impl::start() {
     if (!capture_session_) {
       auto current_size = capture_item_.Size();
       capture_framepool_ =
-          winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::Create(
-              d3d11_direct_device_,
-              winrt::Windows::Graphics::DirectX::DirectXPixelFormat::
-                  B8G8R8A8UIntNormalized,
-              2, current_size);
+          winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::
+              CreateFreeThreaded(d3d11_direct_device_,
+                                 winrt::Windows::Graphics::DirectX::
+                                     DirectXPixelFormat::B8G8R8A8UIntNormalized,
+                                 2, current_size);
       capture_session_ = capture_framepool_.CreateCaptureSession(capture_item_);
       capture_frame_size_ = current_size;
       capture_framepool_trigger_ = capture_framepool_.FrameArrived(
           winrt::auto_revoke, {this, &wgc_session_impl::on_frame});
+      capture_close_trigger_ = capture_item_.Closed(
+          winrt::auto_revoke, {this, &wgc_session_impl::on_closed});
     }
 
     if (!capture_framepool_)
       throw std::exception();
 
-    capture_session_.StartCapture();
-
-    capture_close_trigger_ = capture_item_.Closed(
-        winrt::auto_revoke, {this, &wgc_session_impl::on_closed});
-
     is_running_ = true;
-    thread_ = std::thread(std::bind(&wgc_session_impl::message_func, this));
+
+    // we do not need to crate a thread to enter a message loop coz we use
+    // CreateFreeThreaded instead of Create to create a capture frame pool,
+    // we need to test the performance later
+    // loop_ = std::thread(std::bind(&wgc_session_impl::message_func, this));
+
+    capture_session_.StartCapture();
 
     error = AM_ERROR::AE_NO;
   } catch (winrt::hresult_error) {
@@ -100,8 +103,9 @@ int wgc_session_impl::stop() {
   CHECK_INIT;
 
   is_running_ = false;
-  if (thread_.joinable())
-    thread_.join();
+
+  if (loop_.joinable())
+    loop_.join();
 
   if (capture_framepool_trigger_)
     capture_framepool_trigger_.revoke();
@@ -243,11 +247,19 @@ void wgc_session_impl::on_frame(
                                           frame_captured.get());
 
       D3D11_MAPPED_SUBRESOURCE map_result;
-      d3d11_device_context_->Map(d3d11_texture_mapped_.get(), 0, D3D11_MAP_READ,
-                                 D3D11_MAP_FLAG_DO_NOT_WAIT, &map_result);
+      HRESULT hr = d3d11_device_context_->Map(
+          d3d11_texture_mapped_.get(), 0, D3D11_MAP_READ,
+          0 /*coz we use CreateFreeThreaded, so we cant use flags
+               D3D11_MAP_FLAG_DO_NOT_WAIT*/
+          ,
+          &map_result);
+      if (FAILED(hr)) {
+        OutputDebugStringW(
+            (L"map resource failed: " + std::to_wstring(hr)).c_str());
+      }
 
       // copy data from mapInfo.pData
-#if 1
+#if 0
       if (map_result.pData) {
         static unsigned char *buffer = nullptr;
         if (buffer && is_new_size)
@@ -311,7 +323,9 @@ void wgc_session_impl::on_frame(
 
 void wgc_session_impl::on_closed(
     winrt::Windows::Graphics::Capture::GraphicsCaptureItem const &,
-    winrt::Windows::Foundation::IInspectable const &) {}
+    winrt::Windows::Foundation::IInspectable const &) {
+  OutputDebugStringW(L"wgc_session_impl::on_closed");
+}
 
 int wgc_session_impl::initialize() {
   if (is_initialized_)
@@ -359,15 +373,40 @@ void wgc_session_impl::cleanup() {
   }
 }
 
+LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w_param,
+                            LPARAM l_param) {
+  return DefWindowProc(window, message, w_param, l_param);
+}
+
 void wgc_session_impl::message_func() {
+  const std::wstring kClassName = L"am_fake_window";
+
+  WNDCLASS wc = {};
+
+  wc.style = CS_HREDRAW | CS_VREDRAW;
+  wc.lpfnWndProc = DefWindowProc;
+  wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+  wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW);
+  wc.lpszClassName = kClassName.c_str();
+
+  if (!::RegisterClassW(&wc))
+    return;
+
+  hwnd_ = ::CreateWindowW(kClassName.c_str(), nullptr, WS_OVERLAPPEDWINDOW, 0,
+                          0, 0, 0, nullptr, nullptr, nullptr, nullptr);
+  MSG msg;
   while (is_running_) {
-    MSG msg;
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+      if (!is_running_)
+        break;
       TranslateMessage(&msg);
       DispatchMessage(&msg);
     }
     Sleep(10);
   }
+
+  ::CloseWindow(hwnd_);
+  ::DestroyWindow(hwnd_);
 }
 
 } // namespace am

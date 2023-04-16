@@ -63,7 +63,6 @@ private:
   bool is_initialized_ = false;
   bool is_running_ = false;
   bool is_paused_ = false;
-  std::thread thread_;
 
   const wgc_session_observer *observer_ = nullptr;
 
@@ -85,6 +84,10 @@ private:
       FrameArrived_revoker capture_framepool_trigger_;
   winrt::Windows::Graphics::Capture::GraphicsCaptureItem::Closed_revoker
       capture_close_trigger_;
+
+  // message loop
+  std::thread loop_;
+  HWND hwnd_ = nullptr;
 };
 
 template <typename T>
