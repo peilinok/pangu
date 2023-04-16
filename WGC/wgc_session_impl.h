@@ -28,7 +28,7 @@ public:
   int initialize(HWND hwnd) override;
   int initialize(HMONITOR hmonitor) override;
 
-  void register_observer(const wgc_session_observer *observer) override;
+  void register_observer(wgc_session_observer *observer) override;
 
   int start() override;
   int stop() override;
@@ -64,7 +64,7 @@ private:
   bool is_running_ = false;
   bool is_paused_ = false;
 
-  const wgc_session_observer *observer_ = nullptr;
+  wgc_session_observer *observer_ = nullptr;
 
   // wgc
   winrt::Windows::Graphics::Capture::GraphicsCaptureItem capture_item_{nullptr};

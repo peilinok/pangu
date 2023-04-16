@@ -44,7 +44,7 @@ int wgc_session_impl::initialize(HMONITOR hmonitor) {
   return initialize();
 }
 
-void wgc_session_impl::register_observer(const wgc_session_observer *observer) {
+void wgc_session_impl::register_observer(wgc_session_observer *observer) {
   std::lock_guard locker(lock_);
   observer_ = observer;
 }
@@ -220,6 +220,8 @@ HRESULT wgc_session_impl::create_mapped_texture(
 void wgc_session_impl::on_frame(
     winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const &sender,
     winrt::Windows::Foundation::IInspectable const &args) {
+  std::lock_guard locker(lock_);
+
   auto is_new_size = false;
 
   {
@@ -258,7 +260,14 @@ void wgc_session_impl::on_frame(
             (L"map resource failed: " + std::to_wstring(hr)).c_str());
       }
 
-      // copy data from mapInfo.pData
+      // copy data from map_result.pData
+      if (map_result.pData && observer_) {
+        observer_->on_frame(wgc_session_frame{
+            static_cast<unsigned int>(frame_size.Width),
+            static_cast<unsigned int>(frame_size.Height), map_result.RowPitch,
+            const_cast<const unsigned char *>(
+                (unsigned char *)map_result.pData)});
+      }
 #if 0
       if (map_result.pData) {
         static unsigned char *buffer = nullptr;
@@ -362,8 +371,12 @@ void wgc_session_impl::cleanup() {
   if (cleaned_.compare_exchange_strong(expected, true)) {
     capture_close_trigger_.revoke();
     capture_framepool_trigger_.revoke();
-    capture_framepool_.Close();
-    capture_session_.Close();
+
+    if (capture_framepool_)
+      capture_framepool_.Close();
+
+    if (capture_session_)
+      capture_session_.Close();
 
     capture_framepool_ = nullptr;
     capture_session_ = nullptr;

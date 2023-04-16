@@ -121,6 +121,25 @@ int record_desktop_wgc::stop() {
 
 void record_desktop_wgc::on_frame(const wgc_session::wgc_session_frame &frame) {
   al_debug("wgc on frame");
+  AVFrame *av_frame = av_frame_alloc();
+
+  av_frame->pts = av_gettime_relative();
+  av_frame->pkt_dts = av_frame->pts;
+  av_frame->pkt_pts = av_frame->pts;
+
+  av_frame->width = frame.width;
+  av_frame->height = frame.height;
+  av_frame->format = AV_PIX_FMT_BGRA;
+  av_frame->pict_type = AV_PICTURE_TYPE_NONE;
+  av_frame->pkt_size = frame.width * frame.height * 4;
+
+  av_image_fill_arrays(av_frame->data, av_frame->linesize, frame.data,
+                       AV_PIX_FMT_BGRA, frame.width, frame.height, 1);
+
+  if (_on_data)
+    _on_data(av_frame);
+
+  av_frame_free(&av_frame);
 }
 
 void record_desktop_wgc::clean_up() {

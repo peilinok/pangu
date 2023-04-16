@@ -12,7 +12,13 @@ namespace am {
 
 class wgc_session {
 public:
-  struct wgc_session_frame {};
+  struct wgc_session_frame {
+    unsigned int width;
+    unsigned int height;
+    unsigned int row_pitch;
+
+    const unsigned char *data;
+  };
 
   class wgc_session_observer {
   public:
@@ -28,7 +34,7 @@ public:
   virtual int initialize(HWND hwnd) = 0;
   virtual int initialize(HMONITOR hmonitor) = 0;
 
-  virtual void register_observer(const wgc_session_observer *observer) = 0;
+  virtual void register_observer(wgc_session_observer *observer) = 0;
 
   virtual int start() = 0;
   virtual int stop() = 0;
