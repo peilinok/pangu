@@ -207,6 +207,9 @@
     <ClInclude Include="system_error.h">
       <Filter>Header Files\helpers\win</Filter>
     </ClInclude>
+    <ClInclude Include="record_desktop_wgc.h">
+      <Filter>Header Files\record</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -319,6 +322,9 @@
     </ClCompile>
     <ClCompile Include="system_error.cpp">
       <Filter>Source Files\helpers\win</Filter>
+    </ClCompile>
+    <ClCompile Include="record_desktop_wgc.cpp">
+      <Filter>Source Files\record</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

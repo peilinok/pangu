@@ -146,6 +146,12 @@ namespace am {
 		return info.major > 6 || (info.major == 6 && info.minor >= 2);
 	}
 
+	bool system_version::is_win10_or_above(int build_number) {
+    winversion_info info;
+    get_win(&info);
+    return info.major > 6 || (info.major == 6 && info.minor >= 2);
+  }
+
 	bool system_version::is_32()
 	{
 #if defined(_WIN64)
