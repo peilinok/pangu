@@ -44,9 +44,13 @@ protected:
   void clean_up() override;
 
 private:
-  int do_record();
   void record_func();
+
   void do_sleep(int64_t dur, int64_t pre, int64_t now);
+
+  bool do_mag_initialize();
+
+  int do_mag_record();
 
   void on_mag_data(void *data, const MAGIMAGEHEADER &header);
 
@@ -67,9 +71,9 @@ private:
   // Mag functions
   MagInitializeFunc mag_initialize_func_ = nullptr;
   MagUninitializeFunc mag_uninitialize_func_ = nullptr;
-  MagSetWindowSourceFunc set_window_source_func_ = nullptr;
-  MagSetWindowFilterListFunc set_window_filter_list_func_ = nullptr;
-  MagSetImageScalingCallbackFunc set_image_scaling_callback_func_ = nullptr;
+  MagSetWindowSourceFunc mag_set_window_source_func_ = nullptr;
+  MagSetWindowFilterListFunc mag_set_window_filter_list_func_ = nullptr;
+  MagSetImageScalingCallbackFunc mag_set_image_scaling_callback_func_ = nullptr;
 
   // The hidden window hosting the magnifier control.
   HWND host_window_ = NULL;
