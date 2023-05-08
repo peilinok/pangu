@@ -175,8 +175,26 @@ int recorder::init(const AMRECORDER_SETTING & setting, const AMRECORDER_CALLBACK
 #endif 
 
 #ifdef _WIN32
+#if USE_MAG
+  if (_recorder_desktop == nullptr) {
+                error =
+                    record_desktop_new(RECORD_DESKTOP_TYPES::DT_DESKTOP_WIN_MAG,
+                                  &_recorder_desktop);
+    if (error == AE_NO) {
+      error = _recorder_desktop->init(
+          {setting.v_left, setting.v_top,
+            setting.v_width + setting.v_left,
+            setting.v_height + setting.v_top},
+          setting.v_frame_rate);
+
+      if (error != AE_NO)
+        record_desktop_destroy(&_recorder_desktop);
+    }
+  }
+#endif
+
 	// windows support wgc since win10.1803
-	if (system_version::is_win10_or_above(17134)) {
+  if (_recorder_desktop == nullptr && system_version::is_win10_or_above(17134)) {
     error = record_desktop_new(RECORD_DESKTOP_TYPES::DT_DESKTOP_WIN_WGC,
         &_recorder_desktop);
     if (error == AE_NO) {
