@@ -1,5 +1,7 @@
 #include "record_desktop_mag.h"
 
+#include "system_lib.h"
+
 #include "error_define.h"
 #include "log_helper.h"
 
@@ -87,16 +89,16 @@ int record_desktop_mag::stop() {
 }
 
 void record_desktop_mag::clean_up() {
-  // DestroyWindow must be called before MagUninitialize. magnifier_window_ is
-  // destroyed automatically when host_window_ is destroyed.
-  if (host_window_)
-    DestroyWindow(host_window_);
-  if (magnifier_initialized_)
-    mag_uninitialize_func_();
-  if (mag_lib_handle_)
-    FreeLibrary(mag_lib_handle_);
-  if (desktop_dc_)
-    ReleaseDC(NULL, desktop_dc_);
+  // DestroyWindow must be called before MagUninitialize. _magnifier_window is
+  // destroyed automatically when _host_window is destroyed.
+  if (_host_window)
+    DestroyWindow(_host_window);
+  if (_magnifier_initialized)
+    _mag_uninitialize_func();
+  if (_mag_lib_handle)
+    free_system_library(_mag_lib_handle);
+  if (_desktop_dc)
+    ReleaseDC(NULL, _desktop_dc);
 
   _inited = false;
 }
@@ -150,32 +152,34 @@ bool record_desktop_mag::do_mag_initialize() {
     return false;
   }
 #endif
-  desktop_dc_ = GetDC(nullptr);
-  mag_lib_handle_ = LoadLibraryW(L"Magnification.dll");
-  if (!mag_lib_handle_)
+
+  _desktop_dc = GetDC(nullptr);
+  _mag_lib_handle = load_system_library("Magnification.dll");
+  if (!_mag_lib_handle)
     return false;
   // Initialize Magnification API function pointers.
-  mag_initialize_func_ = reinterpret_cast<MagInitializeFunc>(
-      GetProcAddress(mag_lib_handle_, "MagInitialize"));
-  mag_uninitialize_func_ = reinterpret_cast<MagUninitializeFunc>(
-      GetProcAddress(mag_lib_handle_, "MagUninitialize"));
-  mag_set_window_source_func_ = reinterpret_cast<MagSetWindowSourceFunc>(
-      GetProcAddress(mag_lib_handle_, "MagSetWindowSource"));
-  mag_set_window_filter_list_func_ =
+  _mag_initialize_func = reinterpret_cast<MagInitializeFunc>(
+      GetProcAddress(_mag_lib_handle, "MagInitialize"));
+  _mag_uninitialize_func = reinterpret_cast<MagUninitializeFunc>(
+      GetProcAddress(_mag_lib_handle, "MagUninitialize"));
+  _mag_set_window_source_func = reinterpret_cast<MagSetWindowSourceFunc>(
+      GetProcAddress(_mag_lib_handle, "MagSetWindowSource"));
+  _mag_set_window_filter_list_func =
       reinterpret_cast<MagSetWindowFilterListFunc>(
-          GetProcAddress(mag_lib_handle_, "MagSetWindowFilterList"));
-  mag_set_image_scaling_callback_func_ =
+          GetProcAddress(_mag_lib_handle, "MagSetWindowFilterList"));
+  _mag_set_image_scaling_callback_func =
       reinterpret_cast<MagSetImageScalingCallbackFunc>(
-          GetProcAddress(mag_lib_handle_, "MagSetImageScalingCallback"));
-  if (!mag_initialize_func_ || !mag_uninitialize_func_ ||
-      !mag_set_window_source_func_ || !mag_set_window_filter_list_func_ ||
-      !mag_set_image_scaling_callback_func_) {
+          GetProcAddress(_mag_lib_handle, "MagSetImageScalingCallback"));
+  if (!_mag_initialize_func || !_mag_uninitialize_func ||
+      !_mag_set_window_source_func || !_mag_set_window_filter_list_func ||
+      !_mag_set_image_scaling_callback_func) {
     al_info(
         "Failed to initialize ScreenCapturerWinMagnifier: library functions "
         "missing.");
     return false;
   }
-  BOOL result = mag_initialize_func_();
+
+  BOOL result = _mag_initialize_func();
   if (!result) {
     al_info("Failed to initialize ScreenCapturerWinMagnifier: error from "
             "MagInitialize %ld",
@@ -188,7 +192,7 @@ bool record_desktop_mag::do_mag_initialize() {
                              GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                          reinterpret_cast<char *>(&DefWindowProc), &hInstance);
   if (!result) {
-    mag_uninitialize_func_();
+    _mag_uninitialize_func();
     al_info("Failed to initialize ScreenCapturerWinMagnifier: "
             "error from GetModulehandleExA %ld",
             GetLastError());
@@ -205,56 +209,56 @@ bool record_desktop_mag::do_mag_initialize() {
   // Ignore the error which may happen when the class is already registered.
   RegisterClassExW(&wcex);
   // Create the host window.
-  host_window_ =
+  _host_window =
       CreateWindowExW(WS_EX_LAYERED, kMagnifierHostClass, kHostWindowName, 0, 0,
                       0, 0, 0, nullptr, nullptr, hInstance, nullptr);
-  if (!host_window_) {
-    mag_uninitialize_func_();
+  if (!_host_window) {
+    _mag_uninitialize_func();
     al_info("Failed to initialize ScreenCapturerWinMagnifier: "
             "error from creating host window %ld",
             GetLastError());
     return false;
   }
   // Create the magnifier control.
-  magnifier_window_ = CreateWindowW(kMagnifierWindowClass, kMagnifierWindowName,
+  _magnifier_window = CreateWindowW(kMagnifierWindowClass, kMagnifierWindowName,
                                     WS_CHILD | WS_VISIBLE, 0, 0, 0, 0,
-                                    host_window_, nullptr, hInstance, nullptr);
-  if (!magnifier_window_) {
-    mag_uninitialize_func_();
+                                    _host_window, nullptr, hInstance, nullptr);
+  if (!_magnifier_window) {
+    _mag_uninitialize_func();
     al_info("Failed to initialize ScreenCapturerWinMagnifier: "
             "error from creating magnifier window %ld",
             GetLastError());
     return false;
   }
   // Hide the host window.
-  ShowWindow(host_window_, SW_HIDE);
+  ShowWindow(_host_window, SW_HIDE);
   // Set the scaling callback to receive captured image.
-  result = mag_set_image_scaling_callback_func_(
-      magnifier_window_, &record_desktop_mag::on_mag_scaling_callback);
+  result = _mag_set_image_scaling_callback_func(
+      _magnifier_window, &record_desktop_mag::on_mag_scaling_callback);
   if (!result) {
-    mag_uninitialize_func_();
+    _mag_uninitialize_func();
     al_info("Failed to initialize ScreenCapturerWinMagnifier: "
             "error from MagSetImageScalingCallback %ld",
             GetLastError());
     return false;
   }
-  if (excluded_window_) {
-    result = mag_set_window_filter_list_func_(
-        magnifier_window_, MW_FILTERMODE_EXCLUDE, 1, &excluded_window_);
+  if (_excluded_window) {
+    result = _mag_set_window_filter_list_func(
+        _magnifier_window, MW_FILTERMODE_EXCLUDE, 1, &_excluded_window);
     if (!result) {
-      mag_uninitialize_func_();
+      _mag_uninitialize_func();
       al_warn("Failed to initialize ScreenCapturerWinMagnifier: "
               "error from MagSetWindowFilterList %ld",
               GetLastError());
       return false;
     }
   }
-  magnifier_initialized_ = true;
+  _magnifier_initialized = true;
   return true;
 }
 
 int record_desktop_mag::do_mag_record() {
-  if (!magnifier_initialized_) {
+  if (!_magnifier_initialized) {
     al_error("Magnifier initialization failed.");
     return AE_NEED_INIT;
   }
@@ -264,27 +268,30 @@ int record_desktop_mag::do_mag_record() {
     // magnifier control will be the captured image.
 
     BOOL result =
-        SetWindowPos(magnifier_window_, NULL, rect.left, rect.top,
+        SetWindowPos(_magnifier_window, NULL, rect.left, rect.top,
                      rect.right - rect.left, rect.bottom - rect.top, 0);
     if (!result) {
-      al_error("Failed to call SetWindowPos: %d. Rect = {%d, %d, %d, %d}",
+      al_error("Failed to call SetWindowPos: %ld. Rect = {%d, %d, %d, %d}",
                GetLastError(), rect.left, rect.top, rect.right, rect.bottom);
       return false;
     }
 
-    magnifier_capture_succeeded_ = false;
+    _magnifier_capture_succeeded = false;
     RECT native_rect = {rect.left, rect.top, rect.right, rect.bottom};
     TlsSetValue(GetTlsIndex(), this);
 
     // on_mag_data will be called via on_mag_scaling_callback and fill in the
-    // frame before mag_set_window_source_func_ returns.
-    result = mag_set_window_source_func_(magnifier_window_, native_rect);
+    // frame before _mag_set_window_source_func returns.
+    DWORD exception = 0;
+    result =
+        seh_mag_set_window_source(_magnifier_window, native_rect, exception);
     if (!result) {
-      al_error("Failed to call MagSetWindowSource: %d. Rect = {%d, %d, %d, %d}",
-               GetLastError(), rect.left, rect.top, rect.right, rect.bottom);
+      al_error("Failed to call MagSetWindowSource: %ld Exception: %ld. Rect = {%d, %d, %d, %d}",
+               GetLastError(), exception, rect.left, rect.top, rect.right,
+               rect.bottom);
       return false;
     }
-    return magnifier_capture_succeeded_;
+    return _magnifier_capture_succeeded;
   };
 
 #if 0
@@ -293,9 +300,9 @@ int record_desktop_mag::do_mag_record() {
   std::unique_ptr<Desktop> input_desktop(Desktop::GetInputDesktop());
   if (input_desktop.get() != NULL && !desktop_.IsSame(*input_desktop)) {
     // Release GDI resources otherwise SetThreadDesktop will fail.
-    if (desktop_dc_) {
-      ReleaseDC(NULL, desktop_dc_);
-      desktop_dc_ = NULL;
+    if (_desktop_dc) {
+      ReleaseDC(NULL, _desktop_dc);
+      _desktop_dc = NULL;
     }
     // If SetThreadDesktop() fails, the thread is still assigned a desktop.
     // So we can continue capture screen bits, just from the wrong desktop.
@@ -316,10 +323,10 @@ int record_desktop_mag::do_mag_record() {
 }
 
 void record_desktop_mag::set_exclude(HWND excluded_window) {
-  excluded_window_ = excluded_window;
-  if (excluded_window_ && magnifier_initialized_) {
-    mag_set_window_filter_list_func_(magnifier_window_, MW_FILTERMODE_EXCLUDE,
-                                     1, &excluded_window_);
+  _excluded_window = excluded_window;
+  if (_excluded_window && _magnifier_initialized) {
+    _mag_set_window_filter_list_func(_magnifier_window, MW_FILTERMODE_EXCLUDE,
+                                     1, &_excluded_window);
   }
 }
 
@@ -330,7 +337,7 @@ void record_desktop_mag::on_mag_data(void *data, const MAGIMAGEHEADER &header) {
   if (header.format != GUID_WICPixelFormat32bppRGBA ||
       header.width != static_cast<UINT>(_width) ||
       header.height != static_cast<UINT>(_height) ||
-      header.stride != static_cast<UINT>(kBytesPerPixel*_width) ||
+      header.stride != static_cast<UINT>(kBytesPerPixel * _width) ||
       captured_bytes_per_pixel != kBytesPerPixel) {
     al_warn("Output format does not match the captured format: width = %d, "
             "height = %d, stride= %d, bpp = %d, pixel format RGBA ? %d.",
@@ -361,7 +368,22 @@ void record_desktop_mag::on_mag_data(void *data, const MAGIMAGEHEADER &header) {
 
   av_frame_free(&frame);
 
-  magnifier_capture_succeeded_ = true;
+  _magnifier_capture_succeeded = true;
+}
+
+bool record_desktop_mag::seh_mag_set_window_source(HWND hwnd, RECT rect,
+                                                   DWORD &exception) {
+  if (!_mag_set_window_source_func)
+    return false;
+
+  __try {
+    return _mag_set_window_source_func(hwnd, rect);
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    exception = ::GetExceptionCode();
+    return false;
+  }
+
+  return false;
 }
 
 } // namespace am

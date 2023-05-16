@@ -54,38 +54,40 @@ private:
 
   void on_mag_data(void *data, const MAGIMAGEHEADER &header);
 
+  bool seh_mag_set_window_source(HWND hwnd, RECT rect, DWORD &exception);
+
 private:
   uint32_t _width = 0;
   uint32_t _height = 0;
   int64_t _current_pts = -1;
 
   // Used to exclude window with specified window id.
-  HWND excluded_window_ = NULL;
+  HWND _excluded_window = NULL;
 
   // Used for getting the screen dpi.
-  HDC desktop_dc_ = NULL;
+  HDC _desktop_dc = NULL;
 
   // Module handler
-  HMODULE mag_lib_handle_ = NULL;
+  HMODULE _mag_lib_handle = NULL;
 
   // Mag functions
-  MagInitializeFunc mag_initialize_func_ = nullptr;
-  MagUninitializeFunc mag_uninitialize_func_ = nullptr;
-  MagSetWindowSourceFunc mag_set_window_source_func_ = nullptr;
-  MagSetWindowFilterListFunc mag_set_window_filter_list_func_ = nullptr;
-  MagSetImageScalingCallbackFunc mag_set_image_scaling_callback_func_ = nullptr;
+  MagInitializeFunc _mag_initialize_func = nullptr;
+  MagUninitializeFunc _mag_uninitialize_func = nullptr;
+  MagSetWindowSourceFunc _mag_set_window_source_func = nullptr;
+  MagSetWindowFilterListFunc _mag_set_window_filter_list_func = nullptr;
+  MagSetImageScalingCallbackFunc _mag_set_image_scaling_callback_func = nullptr;
 
   // The hidden window hosting the magnifier control.
-  HWND host_window_ = NULL;
+  HWND _host_window = NULL;
 
   // The magnifier control that captures the screen.
-  HWND magnifier_window_ = NULL;
+  HWND _magnifier_window = NULL;
 
   // True if the magnifier control has been successfully initialized.
-  bool magnifier_initialized_ = false;
+  bool _magnifier_initialized = false;
 
   // True if the last OnMagImageScalingCallback was called and handled
   // successfully. Reset at the beginning of each CaptureImage call.
-  bool magnifier_capture_succeeded_ = true;
+  bool _magnifier_capture_succeeded = true;
 };
 } // namespace am
