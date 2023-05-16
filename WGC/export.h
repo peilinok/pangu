@@ -27,8 +27,6 @@ public:
   };
 
 public:
-  virtual ~wgc_session(){};
-
   virtual void release() = 0;
 
   virtual int initialize(HWND hwnd) = 0;
@@ -41,6 +39,9 @@ public:
 
   virtual int pause() = 0;
   virtual int resume() = 0;
+
+protected:
+  virtual ~wgc_session(){};
 };
 
 } // namespace am
