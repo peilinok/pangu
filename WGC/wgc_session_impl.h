@@ -20,7 +20,7 @@ class wgc_session_impl : public wgc_session {
 
 public:
   wgc_session_impl();
-  ~wgc_session_impl();
+  ~wgc_session_impl() override;
 
 public:
   void release() override;
