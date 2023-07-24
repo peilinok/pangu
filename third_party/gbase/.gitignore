@@ -1,0 +1,3 @@
+base/**/*_buildflags.h
+base/**/buildflags.h
+base/generated_build_date.h
